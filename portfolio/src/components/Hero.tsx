@@ -1,7 +1,12 @@
 import { useRef, useEffect, useState } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 
-const SPHERE_CHARS = '∂∇∑∫λπαεδσμωρβγ0123456789'
+const SPHERE_SKILLS = [
+  'React', 'TypeScript', 'Go', 'Python', 'Kafka',
+  'CUDA', 'Redis', 'C++', 'PostgreSQL', 'Docker',
+  'Node.js', 'Supabase', 'WebSockets', 'Linux', 'SQL',
+  'Three.js', 'Vite', 'Tailwind', 'GLSL', 'AWS',
+]
 const DEFAULT_PTS = 150
 
 type Vec3 = [number, number, number]
@@ -38,7 +43,7 @@ interface SphereState {
   exploding: boolean; explodeT: number; explodePts: ExplodeParticle[]
 }
 
-const FONT_CACHE = Array.from({ length: 17 }, (_, i) => `${8 + i}px 'JetBrains Mono', monospace`)
+const FONT_CACHE = Array.from({ length: 8 }, (_, i) => `${7 + i}px 'JetBrains Mono', monospace`)
 
 const SPHERE_TOP_PCT = 57
 
@@ -51,13 +56,39 @@ export default function Hero({ onEnter }: Props) {
   const [numPts, setNumPts] = useState(DEFAULT_PTS)
   const [btnVisible, setBtnVisible] = useState(true)
   const pts = useRef<Vec3[]>(fibSphere(DEFAULT_PTS))
+  const edges = useRef<[number, number][]>([])
   const state = useRef<SphereState>({
     rX: 0.3, rY: 0, vX: 0, vY: 0.004,
     dragging: false, lastX: 0, lastY: 0, raf: 0,
     exploding: false, explodeT: 0, explodePts: [],
   })
 
-  useEffect(() => { pts.current = fibSphere(numPts) }, [numPts])
+  const buildEdges = (p: Vec3[], K = 6) => {
+    const result: [number, number][] = []
+    const seen = new Set<string>()
+    for (let i = 0; i < p.length; i++) {
+      const dists: { j: number; d: number }[] = []
+      for (let j = 0; j < p.length; j++) {
+        if (j === i) continue
+        const dx = p[i][0]-p[j][0], dy = p[i][1]-p[j][1], dz = p[i][2]-p[j][2]
+        dists.push({ j, d: dx*dx + dy*dy + dz*dz })
+      }
+      dists.sort((a, b) => a.d - b.d)
+      for (let k = 0; k < K; k++) {
+        const j = dists[k].j
+        const key = i < j ? `${i},${j}` : `${j},${i}`
+        if (!seen.has(key)) { seen.add(key); result.push([i, j]) }
+      }
+    }
+    return result
+  }
+
+  useEffect(() => {
+    pts.current = fibSphere(numPts)
+    edges.current = buildEdges(pts.current)
+  }, [numPts])
+
+  useEffect(() => { edges.current = buildEdges(pts.current) }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -130,6 +161,22 @@ export default function Hero({ onEnter }: Props) {
 
       const cx = w / 2
       const cy = h * (SPHERE_TOP_PCT / 100)
+
+      // Draw network edges
+      for (const [ei, ej] of edges.current) {
+        const [ax, ay, az] = rotBuf[ei]
+        const [bx, by, bz] = rotBuf[ej]
+        const avgDepth = ((az + 1) / 2 + (bz + 1) / 2) / 2
+        ctx.globalAlpha = 0.07 + avgDepth * 0.34
+        const ev = Math.round(70 + avgDepth * 156)
+        ctx.strokeStyle = `rgb(${ev},${ev},${ev})`
+        ctx.lineWidth = 0.78
+        ctx.beginPath()
+        ctx.moveTo(cx + ax * r, cy + ay * r)
+        ctx.lineTo(cx + bx * r, cy + by * r)
+        ctx.stroke()
+      }
+
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       for (let si = 0; si < n; si++) {
@@ -137,10 +184,10 @@ export default function Hero({ onEnter }: Props) {
         const [px, py, pz] = rotBuf[i]
         const depth = (pz + 1) / 2
         ctx.globalAlpha = 0.08 + depth * 0.92
-        ctx.font = FONT_CACHE[Math.round(depth * 16)]
+        ctx.font = FONT_CACHE[Math.round(depth * 7)]
         const v = Math.round(30 + depth * 225)
         ctx.fillStyle = `rgb(${v},${v},${v})`
-        ctx.fillText(SPHERE_CHARS[i % SPHERE_CHARS.length], cx + px * r, cy + py * r)
+        ctx.fillText(SPHERE_SKILLS[i % SPHERE_SKILLS.length], cx + px * r, cy + py * r)
       }
       ctx.globalAlpha = 1
 
@@ -204,7 +251,7 @@ export default function Hero({ onEnter }: Props) {
           x: sx, y: sy,
           vx: (dirX / len) * speed + (Math.random() - 0.5) * 2,
           vy: (dirY / len) * speed + (Math.random() - 0.5) * 2,
-          ch: SPHERE_CHARS[i % SPHERE_CHARS.length],
+          ch: SPHERE_SKILLS[i % SPHERE_SKILLS.length],
           depth: (pz + 1) / 2,
         }
       })
