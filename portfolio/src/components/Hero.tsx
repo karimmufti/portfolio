@@ -44,6 +44,7 @@ interface SphereState {
 }
 
 const FONT_CACHE = Array.from({ length: 8 }, (_, i) => `${7 + i}px 'JetBrains Mono', monospace`)
+const FONT_CACHE_MOBILE = Array.from({ length: 3 }, (_, i) => `${5 + i}px 'JetBrains Mono', monospace`)
 
 const SPHERE_TOP_PCT = 57
 
@@ -111,7 +112,11 @@ export default function Hero({ onEnter }: Props) {
       const s = state.current
       const w = canvas.width
       const h = canvas.height
-      const r = Math.min(w, h) * 0.28
+      const isMobile = w < 640
+      const r = Math.min(w, h) * (isMobile ? 0.38 : 0.28)
+      const fontCache = isMobile ? FONT_CACHE_MOBILE : FONT_CACHE
+      const fontDepthScale = isMobile ? 2 : 7
+      const ptCount = isMobile ? Math.min(60, pts.current.length) : pts.current.length
 
       ctx.clearRect(0, 0, w, h)
 
@@ -144,7 +149,7 @@ export default function Hero({ onEnter }: Props) {
         s.vY += (0.003 - s.vY) * 0.002
       }
 
-      const n = pts.current.length
+      const n = ptCount // mobile: 60 pts, desktop: 150
       const cosY = Math.cos(s.rY), sinY = Math.sin(s.rY)
       const cosX = Math.cos(s.rX), sinX = Math.sin(s.rX)
       for (let i = 0; i < n; i++) {
@@ -184,7 +189,7 @@ export default function Hero({ onEnter }: Props) {
         const [px, py, pz] = rotBuf[i]
         const depth = (pz + 1) / 2
         ctx.globalAlpha = 0.08 + depth * 0.92
-        ctx.font = FONT_CACHE[Math.round(depth * 7)]
+        ctx.font = fontCache[Math.round(depth * fontDepthScale)]
         const v = Math.round(30 + depth * 225)
         ctx.fillStyle = `rgb(${v},${v},${v})`
         ctx.fillText(SPHERE_SKILLS[i % SPHERE_SKILLS.length], cx + px * r, cy + py * r)
@@ -304,13 +309,13 @@ export default function Hero({ onEnter }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 0.15 } }}
             transition={{ duration: 0.9, delay: 1.3, ease: 'easeOut' }}
-            className="absolute"
+            className="absolute z-10"
             style={{ top: `${SPHERE_TOP_PCT}%`, left: '50%', transform: 'translate(-50%, -50%)' }}
           >
             <button
               onClick={handleLaunch}
               className="relative font-mono uppercase text-white/60 hover:text-white transition-colors duration-300"
-              style={{ fontSize: '0.65rem', letterSpacing: '0.3em', background: 'none', border: 'none', cursor: 'pointer', padding: '14px 32px' }}
+              style={{ fontSize: '0.65rem', letterSpacing: '0.3em', background: '#000', border: 'none', cursor: 'pointer', padding: '14px 32px', borderRadius: '999px' }}
             >
               {/* Static ring */}
               <span className="absolute inset-0 rounded-full pointer-events-none"
